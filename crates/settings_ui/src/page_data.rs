@@ -3367,6 +3367,36 @@ fn languages_and_tools_page(cx: &App) -> SettingsPage {
         ]
     }
 
+    // todo(settings_ui): Needs unit
+    fn lsp_idle_shutdown_section() -> [SettingsPageItem; 2] {
+        [
+            SettingsPageItem::SectionHeader("LSP Idle Shutdown (Experimental)"),
+            SettingsPageItem::SettingItem(SettingItem {
+                title: "Idle Timeout",
+                description: "Stop language servers after this many seconds of editor inactivity. They restart automatically once editing resumes. 0 disables idle shutdown.",
+                field: Box::new(SettingField {
+                    organization_override: None,
+                    json_path: Some("global_lsp_settings.experimental_idle_timeout_seconds"),
+                    pick: |settings_content| {
+                        settings_content
+                            .global_lsp_settings
+                            .as_ref()?
+                            .experimental_idle_timeout_seconds
+                            .as_ref()
+                    },
+                    write: |settings_content, value, _| {
+                        settings_content
+                            .global_lsp_settings
+                            .get_or_insert_default()
+                            .experimental_idle_timeout_seconds = value;
+                    },
+                }),
+                metadata: None,
+                files: USER,
+            }),
+        ]
+    }
+
     fn languages_list_section(cx: &App) -> Box<[SettingsPageItem]> {
         // todo(settings_ui): Refresh on extension (un)/installed
         // Note that `crates/json_schema_store` solves the same problem, there is probably a way to unify the two
@@ -3410,6 +3440,7 @@ fn languages_and_tools_page(cx: &App) -> SettingsPage {
                 inline_diagnostics_section(),
                 lsp_pull_diagnostics_section(),
                 lsp_highlights_section(),
+                lsp_idle_shutdown_section(),
                 languages_list_section(cx),
             )
         },

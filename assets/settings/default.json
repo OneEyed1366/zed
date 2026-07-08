@@ -2558,6 +2558,12 @@
     //
     // Default rules are viewable via the "zed: show default semantic token rules" action.
     "semantic_token_rules": [],
+    // Experimental: stop language servers after this many seconds of editor
+    // inactivity (no keystrokes). They are restarted automatically once editing resumes.
+    // 0 turns idle shutdown off.
+    //
+    // Default: 900 (15 minutes)
+    "experimental_idle_timeout_seconds": 900,
   },
   // Jupyter settings
   "jupyter": {
