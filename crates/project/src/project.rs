@@ -4061,6 +4061,14 @@ impl Project {
         })
     }
 
+    /// Experimental: signals editor activity for the idle LSP shutdown timer. See
+    /// `LspStore::record_activity_for_experimental_idle_lsp_shutdown`.
+    pub fn record_activity_for_experimental_idle_lsp_shutdown(&mut self, cx: &mut Context<Self>) {
+        self.lsp_store.update(cx, |lsp_store, cx| {
+            lsp_store.record_activity_for_experimental_idle_lsp_shutdown(cx)
+        })
+    }
+
     pub fn stop_language_servers_for_buffers(
         &mut self,
         buffers: Vec<Entity<Buffer>>,

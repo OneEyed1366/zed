@@ -238,6 +238,12 @@ pub struct GlobalLspSettingsContent {
     pub notifications: Option<LspNotificationSettingsContent>,
     /// Rules for rendering LSP semantic tokens.
     pub semantic_token_rules: Option<SemanticTokenRules>,
+    /// Experimental: stop language servers after this many seconds of editor
+    /// inactivity (no keystrokes). They are restarted automatically once editing resumes.
+    /// A value of `0` disables idle shutdown.
+    ///
+    /// Default: `900` (15 minutes)
+    pub experimental_idle_timeout_seconds: Option<u64>,
 }
 
 #[with_fallible_options]

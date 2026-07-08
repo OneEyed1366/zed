@@ -4063,6 +4063,8 @@ pub struct LspStore {
     lsp_data: HashMap<BufferId, BufferLspData>,
     buffer_reload_tasks: HashMap<BufferId, Task<anyhow::Result<()>>>,
     next_hint_id: Arc<AtomicUsize>,
+    idle_shutdown_task: Option<Task<()>>,
+    idle_shutdown_stopped_servers: bool,
 }
 
 #[derive(Debug)]
@@ -4409,6 +4411,8 @@ impl LspStore {
             buffer_reload_tasks: HashMap::default(),
             next_hint_id: Arc::default(),
             active_entry: None,
+            idle_shutdown_task: None,
+            idle_shutdown_stopped_servers: false,
             _maintain_workspace_config,
             _maintain_buffer_languages: Self::maintain_buffer_languages(languages, cx),
         }
@@ -4471,6 +4475,8 @@ impl LspStore {
             lsp_data: HashMap::default(),
             buffer_reload_tasks: HashMap::default(),
             active_entry: None,
+            idle_shutdown_task: None,
+            idle_shutdown_stopped_servers: false,
 
             _maintain_workspace_config,
             _maintain_buffer_languages: Self::maintain_buffer_languages(languages.clone(), cx),
@@ -11647,6 +11653,45 @@ impl LspStore {
                 Ok(())
             })
         }
+    }
+
+    /// Experimental: resets the idle-shutdown timer for language servers. Called on every
+    /// editor keystroke. If no further activity arrives before `global_lsp_settings
+    /// .experimental_idle_timeout` elapses, language servers for all open buffers are stopped;
+    /// they are restarted automatically the next time this is called.
+    pub fn record_activity_for_experimental_idle_lsp_shutdown(&mut self, cx: &mut Context<Self>) {
+        if self.as_local().is_none() {
+            return;
+        }
+        let Some(idle_timeout) = ProjectSettings::get_global(cx)
+            .global_lsp_settings
+            .experimental_idle_timeout
+        else {
+            self.idle_shutdown_task = None;
+            return;
+        };
+
+        if self.idle_shutdown_stopped_servers {
+            self.idle_shutdown_stopped_servers = false;
+            let buffers = self.buffer_store.read(cx).buffers().collect::<Vec<_>>();
+            // `clear_stopped: true` - otherwise `stopped_language_servers` (populated by our own
+            // idle-triggered stop) suppresses `register_buffer_with_language_servers` below and
+            // the server never actually comes back up.
+            self.restart_language_servers_for_buffers(buffers, HashSet::default(), true, cx);
+        }
+
+        self.idle_shutdown_task = Some(cx.spawn(async move |lsp_store, cx| {
+            cx.background_executor().timer(idle_timeout).await;
+            lsp_store
+                .update(cx, |lsp_store, cx| {
+                    lsp_store.idle_shutdown_stopped_servers = true;
+                    let buffers = lsp_store.buffer_store.read(cx).buffers().collect::<Vec<_>>();
+                    lsp_store
+                        .stop_language_servers_for_buffers(buffers, HashSet::default(), cx)
+                        .detach();
+                })
+                .ok();
+        }));
     }
 
     fn stop_local_language_servers_for_buffers(

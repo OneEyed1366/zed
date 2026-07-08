@@ -137,7 +137,16 @@ pub struct GlobalLspSettings {
 
     /// Rules for highlighting semantic tokens.
     pub semantic_token_rules: SemanticTokenRules,
+
+    /// Experimental: stop language servers after this much editor inactivity.
+    /// `None` disables idle shutdown.
+    ///
+    /// Default: `Some(Duration::from_secs(900))` (15 minutes)
+    pub experimental_idle_timeout: Option<Duration>,
 }
+
+/// Default value of `experimental_idle_timeout_seconds`, in seconds.
+const DEFAULT_LSP_IDLE_TIMEOUT_SECS: u64 = 15 * 60;
 
 impl Default for GlobalLspSettings {
     fn default() -> Self {
@@ -146,6 +155,7 @@ impl Default for GlobalLspSettings {
             request_timeout: DEFAULT_LSP_REQUEST_TIMEOUT_SECS,
             notifications: LspNotificationSettings::default(),
             semantic_token_rules: SemanticTokenRules::default(),
+            experimental_idle_timeout: Some(Duration::from_secs(DEFAULT_LSP_IDLE_TIMEOUT_SECS)),
         }
     }
 }
@@ -755,6 +765,13 @@ impl Settings for ProjectSettings {
                     .as_ref()
                     .unwrap()
                     .clone(),
+                experimental_idle_timeout: content
+                    .global_lsp_settings
+                    .as_ref()
+                    .unwrap()
+                    .experimental_idle_timeout_seconds
+                    .filter(|&secs| secs > 0)
+                    .map(Duration::from_secs),
             },
             dap: project
                 .dap

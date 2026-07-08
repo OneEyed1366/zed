@@ -165,7 +165,8 @@ use gpui::{
     AvailableSpace, Background, Bounds, ClickEvent, ClipboardEntry, ClipboardItem, Context,
     DispatchPhase, Edges, Entity, EntityId, EntityInputHandler, EventEmitter, FocusHandle,
     FocusOutEvent, Focusable, FontId, FontStyle, FontWeight, Global, HighlightStyle, Hsla,
-    KeyContext, Modifiers, MouseButton, MouseDownEvent, MouseMoveEvent, PaintQuad, ParentElement,
+    KeyContext, KeystrokeEvent, Modifiers, MouseButton, MouseDownEvent, MouseMoveEvent, PaintQuad,
+    ParentElement,
     Pixels, PressureStage, Render, ScrollHandle, SharedString, SharedUri, Size, Stateful, Styled,
     Subscription, Task, TextRun, TextStyle, TextStyleRefinement, UTF16Selection, UnderlineStyle,
     UniformListScrollHandle, WeakEntity, WeakFocusHandle, Window, div, point, prelude::*,
@@ -2198,6 +2199,8 @@ impl Editor {
             cx.on_blur(&focus_handle, window, Self::handle_blur)
                 .detach();
             cx.observe_pending_input(window, Self::observe_pending_input)
+                .detach();
+            cx.observe_keystrokes(Self::observe_keystrokes_for_experimental_idle_lsp_shutdown)
                 .detach();
         }
 
@@ -10354,8 +10357,35 @@ impl Editor {
         self.focus_handle.is_focused(window)
     }
 
+    /// Experimental: pings the idle LSP shutdown timer on every keystroke, but only for the
+    /// currently focused editor (this fires for every open editor on every keystroke app-wide,
+    /// since keystroke observation isn't scoped to a single window/entity).
+    fn observe_keystrokes_for_experimental_idle_lsp_shutdown(
+        &mut self,
+        _: &KeystrokeEvent,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if !self.is_focused(window) {
+            return;
+        }
+        if let Some(project) = self.project.clone() {
+            project.update(cx, |project, cx| {
+                project.record_activity_for_experimental_idle_lsp_shutdown(cx)
+            });
+        }
+    }
+
     fn handle_focus(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         cx.emit(EditorEvent::Focused);
+
+        // Restart language servers immediately on focus (rather than waiting for the next
+        // keystroke) so they're warm by the time the user starts typing.
+        if let Some(project) = self.project.clone() {
+            project.update(cx, |project, cx| {
+                project.record_activity_for_experimental_idle_lsp_shutdown(cx)
+            });
+        }
 
         if let Some(descendant) = self
             .last_focused_descendant
