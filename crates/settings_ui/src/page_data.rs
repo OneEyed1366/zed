@@ -16,6 +16,7 @@ use crate::{
         open_audio_test_window, render_edit_prediction_setup_page, render_external_agents_page,
         render_llm_providers_page, render_mcp_servers_page, render_sandbox_settings_page,
         render_skills_setup_page, render_tool_permissions_setup_page,
+        render_transparency_blur_page,
     },
 };
 
@@ -491,7 +492,7 @@ fn general_page(cx: &App) -> SettingsPage {
 }
 
 fn appearance_page() -> SettingsPage {
-    fn theme_section() -> [SettingsPageItem; 3] {
+    fn theme_section() -> [SettingsPageItem; 4] {
         [
             SettingsPageItem::SectionHeader("Theme"),
             SettingsPageItem::DynamicItem(DynamicItem {
@@ -853,6 +854,19 @@ fn appearance_page() -> SettingsPage {
                         ],
                     }
                 }).collect(),
+            }),
+            SettingsPageItem::SubPageLink(SubPageLink {
+                title: "Transparency & Blur".into(),
+                r#type: Default::default(),
+                json_path: None,
+                description: Some(
+                    "Adjust window blur and per-section background opacity for the current theme."
+                        .into(),
+                ),
+                search_aliases: &["transparency", "opacity", "blur", "vibrancy", "acrylic"],
+                in_json: false,
+                files: USER,
+                render: render_transparency_blur_page,
             }),
         ]
     }
