@@ -3759,7 +3759,10 @@ impl Panel for CollabPanel {
     }
 
     fn position_is_valid(&self, position: DockPosition) -> bool {
-        matches!(position, DockPosition::Left | DockPosition::Right)
+        matches!(
+            position,
+            DockPosition::Left | DockPosition::Right | DockPosition::Floating
+        )
     }
 
     fn set_position(

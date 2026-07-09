@@ -291,6 +291,10 @@ pub enum DockPosition {
     Left,
     Bottom,
     Right,
+    /// A panel's preferred position, not a physical `Dock`'s position: the
+    /// panel is shown as a centered overlay via `FloatingPanel` instead of
+    /// being laid out inside one of the three `Dock`s.
+    Floating,
 }
 
 impl From<settings::DockPosition> for DockPosition {
@@ -299,6 +303,7 @@ impl From<settings::DockPosition> for DockPosition {
             settings::DockPosition::Left => Self::Left,
             settings::DockPosition::Bottom => Self::Bottom,
             settings::DockPosition::Right => Self::Right,
+            settings::DockPosition::Floating => Self::Floating,
         }
     }
 }
@@ -309,6 +314,7 @@ impl Into<settings::DockPosition> for DockPosition {
             Self::Left => settings::DockPosition::Left,
             Self::Bottom => settings::DockPosition::Bottom,
             Self::Right => settings::DockPosition::Right,
+            Self::Floating => settings::DockPosition::Floating,
         }
     }
 }
@@ -319,6 +325,7 @@ impl From<TerminalDockPosition> for DockPosition {
             TerminalDockPosition::Left => DockPosition::Left,
             TerminalDockPosition::Bottom => DockPosition::Bottom,
             TerminalDockPosition::Right => DockPosition::Right,
+            TerminalDockPosition::Floating => DockPosition::Floating,
         }
     }
 }
@@ -329,6 +336,7 @@ impl DockPosition {
             Self::Left => "Left",
             Self::Bottom => "Bottom",
             Self::Right => "Right",
+            Self::Floating => "Floating",
         }
     }
 
@@ -336,6 +344,9 @@ impl DockPosition {
         match self {
             Self::Left | Self::Right => Axis::Horizontal,
             Self::Bottom => Axis::Vertical,
+            // Floating panels aren't laid out inside a Dock, so this axis is
+            // never used for sizing; Horizontal is an arbitrary default.
+            Self::Floating => Axis::Horizontal,
         }
     }
 }
@@ -595,6 +606,24 @@ impl Dock {
                     if new_position == this.position {
                         return;
                     }
+                    if new_position == DockPosition::Floating {
+                        // Floating panels stay parked in whichever Dock
+                        // currently holds them; only rendering and toggling
+                        // change, not Dock membership. If this panel was the
+                        // Dock's active/open one, clear that so its button no
+                        // longer reads as "open" (it now opens as an overlay
+                        // instead), matching what `remove_panel` does.
+                        let panel_id = Entity::entity_id(&panel);
+                        if this
+                            .active_panel_index
+                            .and_then(|ix| this.panel_entries.get(ix))
+                            .is_some_and(|entry| entry.panel.panel_id() == panel_id)
+                        {
+                            this.active_panel_index = None;
+                            this.set_open(false, window, cx);
+                        }
+                        return;
+                    }
 
                     let Ok(new_dock) = workspace.update(cx, |workspace, cx| {
                         if panel.is_zoomed(window, cx) {
@@ -604,6 +633,7 @@ impl Dock {
                             DockPosition::Left => &workspace.left_dock,
                             DockPosition::Bottom => &workspace.bottom_dock,
                             DockPosition::Right => &workspace.right_dock,
+                            DockPosition::Floating => unreachable!(),
                         }
                         .clone()
                     }) else {
@@ -1036,6 +1066,9 @@ impl Dock {
             DockPosition::Left => crate::ToggleLeftDock.boxed_clone(),
             DockPosition::Bottom => crate::ToggleBottomDock.boxed_clone(),
             DockPosition::Right => crate::ToggleRightDock.boxed_clone(),
+            // A `Dock` container's own position is always Left/Bottom/Right;
+            // `Floating` only ever appears as an individual panel's position.
+            DockPosition::Floating => crate::ToggleLeftDock.boxed_clone(),
         }
     }
 
@@ -1089,9 +1122,12 @@ impl Dock {
 }
 
 impl Render for Dock {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let dispatch_context = Self::dispatch_context();
-        if let Some(entry) = self.visible_entry() {
+        let visible_entry = self
+            .visible_entry()
+            .filter(|entry| entry.panel.position(window, cx) != DockPosition::Floating);
+        if let Some(entry) = visible_entry {
             let position = self.position;
             let create_resize_handle = || {
                 let handle = div()
@@ -1149,6 +1185,10 @@ impl Render for Dock {
                             .w(RESIZE_HANDLE_SIZE)
                             .cursor_col_resize(),
                     ),
+                    // A `Dock` container's own position is always
+                    // Left/Bottom/Right; this resize handle is never shown
+                    // for a floating panel.
+                    DockPosition::Floating => deferred(handle),
                 }
             };
 
@@ -1171,6 +1211,9 @@ impl Render for Dock {
                     DockPosition::Left => this.border_r_1(),
                     DockPosition::Right => this.border_l_1(),
                     DockPosition::Bottom => this.border_t_1(),
+                    // A `Dock` container's own position is always
+                    // Left/Bottom/Right; never reached for a floating panel.
+                    DockPosition::Floating => this,
                 })
                 .child(
                     div()
@@ -1217,7 +1260,10 @@ impl Render for PanelButtons {
 
         let (menu_anchor, menu_attach) = match dock.position {
             DockPosition::Left => (Anchor::BottomLeft, Anchor::TopLeft),
-            DockPosition::Bottom | DockPosition::Right => (Anchor::BottomRight, Anchor::TopRight),
+            // A `Dock` container's own position is always Left/Bottom/Right.
+            DockPosition::Bottom | DockPosition::Right | DockPosition::Floating => {
+                (Anchor::BottomRight, Anchor::TopRight)
+            }
         };
 
         let dock_entity = self.dock.clone();
@@ -1262,10 +1308,11 @@ impl Render for PanelButtons {
                 Some(
                     right_click_menu(name)
                         .menu(move |window, cx| {
-                            const POSITIONS: [DockPosition; 3] = [
+                            const POSITIONS: [DockPosition; 4] = [
                                 DockPosition::Left,
                                 DockPosition::Right,
                                 DockPosition::Bottom,
+                                DockPosition::Floating,
                             ];
 
                             let panel_hide = panel.hide_button_setting(cx);

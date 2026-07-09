@@ -774,6 +774,12 @@
   // Whether to resize all the panels in a dock when resizing the dock.
   // Can be a combination of "left", "right" and "bottom".
   "resize_all_panels_in_dock": ["left"],
+  // How much of the window a floating panel occupies. Can be "small",
+  // "medium", "large", or "fullscreen".
+  "floating_panel_size": "fullscreen",
+  // Padding in pixels between a fullscreen floating panel and the edges of
+  // the window. Has no effect for other floating_panel_size values.
+  "floating_panel_padding": 80,
   "project_panel": {
     // Whether to show the project panel button in the status bar
     "button": true,

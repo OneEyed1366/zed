@@ -7524,11 +7524,15 @@ impl Panel for ProjectPanel {
         match ProjectPanelSettings::get_global(cx).dock {
             DockSide::Left => DockPosition::Left,
             DockSide::Right => DockPosition::Right,
+            DockSide::Floating => DockPosition::Floating,
         }
     }
 
     fn position_is_valid(&self, position: DockPosition) -> bool {
-        matches!(position, DockPosition::Left | DockPosition::Right)
+        matches!(
+            position,
+            DockPosition::Left | DockPosition::Right | DockPosition::Floating
+        )
     }
 
     fn set_position(&mut self, position: DockPosition, _: &mut Window, cx: &mut Context<Self>) {
@@ -7536,6 +7540,7 @@ impl Panel for ProjectPanel {
             let dock = match position {
                 DockPosition::Left | DockPosition::Bottom => DockSide::Left,
                 DockPosition::Right => DockSide::Right,
+                DockPosition::Floating => DockSide::Floating,
             };
             settings.project_panel.get_or_insert_default().dock = Some(dock);
         });

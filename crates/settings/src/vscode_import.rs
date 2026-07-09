@@ -1022,6 +1022,8 @@ impl VsCodeSettings {
             default_open_behavior: None,
             close_on_file_delete: None,
             close_panel_on_toggle: None,
+            floating_panel_size: None,
+            floating_panel_padding: None,
             command_aliases: Default::default(),
             confirm_quit: self.read_enum("window.confirmBeforeClose", |s| match s {
                 "always" | "keyboardOnly" => Some(true),

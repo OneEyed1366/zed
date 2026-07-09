@@ -1,5 +1,6 @@
 pub mod active_file_name;
 pub mod dock;
+mod floating_panel;
 pub mod history_manager;
 pub mod invalid_item_view;
 pub mod item;
@@ -30,6 +31,7 @@ pub mod workspace_error;
 mod workspace_settings;
 
 pub use dock::Panel;
+pub use floating_panel::FloatingPanel;
 pub use multi_workspace::{
     CloseWorkspaceSidebar, DraggedSidebar, FocusWorkspaceSidebar, MoveProjectToNewWindow,
     MultiWorkspace, MultiWorkspaceEvent, NewThread, NextProject, NextThread, PreviousProject,
@@ -2326,6 +2328,10 @@ impl Workspace {
             DockPosition::Left => &self.left_dock,
             DockPosition::Bottom => &self.bottom_dock,
             DockPosition::Right => &self.right_dock,
+            // Floating panels are shown via `FloatingPanel` instead of being
+            // laid out in a Dock; they're still parked in `left_dock` for
+            // storage, focus routing, and serialization purposes.
+            DockPosition::Floating => &self.left_dock,
         }
     }
 
@@ -2499,7 +2505,7 @@ impl Workspace {
         let opposite_position = match position {
             DockPosition::Left => DockPosition::Right,
             DockPosition::Right => DockPosition::Left,
-            DockPosition::Bottom => return None,
+            DockPosition::Bottom | DockPosition::Floating => return None,
         };
 
         let opposite_dock = self.dock_at_position(opposite_position).read(cx);
@@ -4314,6 +4320,15 @@ impl Workspace {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> bool {
+        if let Some(panel) = self.panel::<T>(cx)
+            && panel.read(cx).position(window, cx) == DockPosition::Floating
+        {
+            self.toggle_modal::<FloatingPanel<T>, _>(window, cx, |window, cx| {
+                FloatingPanel::new(panel, window, cx)
+            });
+            return true;
+        }
+
         let mut did_focus_panel = false;
         self.focus_or_unfocus_panel::<T>(window, cx, &mut |panel, window, cx| {
             did_focus_panel = !panel.panel_focus_handle(cx).contains_focused(window, cx);
@@ -5478,6 +5493,8 @@ impl Workspace {
                 DockPosition::Left => self.resize_left_dock(panel_size + amount, window, cx),
                 DockPosition::Bottom => self.resize_bottom_dock(panel_size + amount, window, cx),
                 DockPosition::Right => self.resize_right_dock(panel_size + amount, window, cx),
+                // A `Dock` container's own position is always Left/Bottom/Right.
+                DockPosition::Floating => {}
             }
         } else {
             self.center
@@ -8004,7 +8021,10 @@ impl Workspace {
         // included in the element tree so its focus handle remains mounted — without
         // this, toggle_panel_focus cannot focus the panel when the dock is closed.
         let dock = dock.read(cx);
-        if let Some(panel) = dock.visible_panel() {
+        let visible_panel = dock
+            .visible_panel()
+            .filter(|panel| panel.position(window, cx) != DockPosition::Floating);
+        if let Some(panel) = visible_panel {
             let size_state = dock.stored_panel_size_state(panel.as_ref());
             let min_size = panel.min_size(window, cx);
             if position.axis() == Axis::Horizontal {
@@ -8126,6 +8146,8 @@ impl Workspace {
             DockPosition::Left => self.resize_left_dock(new_size, window, cx),
             DockPosition::Right => self.resize_right_dock(new_size, window, cx),
             DockPosition::Bottom => self.resize_bottom_dock(new_size, window, cx),
+            // A `Dock` container's own position is always Left/Bottom/Right.
+            DockPosition::Floating => {}
         }
     }
 
@@ -8782,6 +8804,9 @@ impl Render for Workspace {
                                                         cx,
                                                     );
                                                 }
+                                                // A `Dock`'s own position is
+                                                // always Left/Bottom/Right.
+                                                DockPosition::Floating => {}
                                             };
                                             workspace.serialize_workspace(window, cx);
                                         }
@@ -9049,7 +9074,11 @@ impl Render for Workspace {
                                     Some(DockPosition::Left) => div.right_2().border_r_1(),
                                     Some(DockPosition::Right) => div.left_2().border_l_1(),
                                     Some(DockPosition::Bottom) => div.top_2().border_t_1(),
-                                    None => div.top_2().bottom_2().left_2().right_2().border_1(),
+                                    // Floating panels aren't docked to an edge, so there's
+                                    // no adjacent edge to skip padding for.
+                                    None | Some(DockPosition::Floating) => {
+                                        div.top_2().bottom_2().left_2().right_2().border_1()
+                                    }
                                 })
                             }))
                             .children(self.render_notifications(window, cx)),
@@ -11221,6 +11250,8 @@ fn load_legacy_panel_size(
     let size = match dock_position {
         DockPosition::Bottom => state.height,
         DockPosition::Left | DockPosition::Right => state.width,
+        // Floating is new; no legacy panel state ever used it.
+        DockPosition::Floating => None,
     }?;
 
     cx.background_spawn(async move { kvp.delete_kvp(legacy_key).await })
