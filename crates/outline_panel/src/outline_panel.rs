@@ -4660,6 +4660,10 @@ impl OutlinePanel {
                                     KeyBinding::for_action(&workspace::ToggleRightDock, cx)
                                         .into_any_element()
                                 }
+                                DockPosition::Floating => {
+                                    KeyBinding::for_action(&*self.toggle_action(), cx)
+                                        .into_any_element()
+                                }
                             };
 
                             key_binding
@@ -4964,11 +4968,15 @@ impl Panel for OutlinePanel {
         match OutlinePanelSettings::get_global(cx).dock {
             DockSide::Left => DockPosition::Left,
             DockSide::Right => DockPosition::Right,
+            DockSide::Floating => DockPosition::Floating,
         }
     }
 
     fn position_is_valid(&self, position: DockPosition) -> bool {
-        matches!(position, DockPosition::Left | DockPosition::Right)
+        matches!(
+            position,
+            DockPosition::Left | DockPosition::Right | DockPosition::Floating
+        )
     }
 
     fn set_position(&mut self, position: DockPosition, _: &mut Window, cx: &mut Context<Self>) {
@@ -4976,6 +4984,7 @@ impl Panel for OutlinePanel {
             let dock = match position {
                 DockPosition::Left | DockPosition::Bottom => DockSide::Left,
                 DockPosition::Right => DockSide::Right,
+                DockPosition::Floating => DockSide::Floating,
             };
             settings.outline_panel.get_or_insert_default().dock = Some(dock);
         });

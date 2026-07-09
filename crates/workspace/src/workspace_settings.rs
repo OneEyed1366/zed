@@ -5,7 +5,7 @@ use collections::HashMap;
 use serde::Deserialize;
 use settings::CommandAliasTarget;
 pub use settings::{
-    AutosaveSetting, BottomDockLayout, EncodingDisplayOptions, InactiveOpacity,
+    AutosaveSetting, BottomDockLayout, EncodingDisplayOptions, FloatingPanelSize, InactiveOpacity,
     PaneSplitDirectionHorizontal, PaneSplitDirectionVertical, RegisterSetting,
     RestoreOnStartupBehavior, Settings,
 };
@@ -35,6 +35,8 @@ pub struct WorkspaceSettings {
     pub resize_all_panels_in_dock: Vec<DockPosition>,
     pub close_on_file_delete: bool,
     pub close_panel_on_toggle: bool,
+    pub floating_panel_size: FloatingPanelSize,
+    pub floating_panel_padding: f32,
     pub use_system_window_tabs: bool,
     pub zoomed_padding: bool,
     pub window_decorations: settings::WindowDecorations,
@@ -122,6 +124,8 @@ impl Settings for WorkspaceSettings {
                 .collect(),
             close_on_file_delete: workspace.close_on_file_delete.unwrap(),
             close_panel_on_toggle: workspace.close_panel_on_toggle.unwrap(),
+            floating_panel_size: workspace.floating_panel_size.unwrap(),
+            floating_panel_padding: workspace.floating_panel_padding.unwrap(),
             use_system_window_tabs: workspace.use_system_window_tabs.unwrap(),
             zoomed_padding: workspace.zoomed_padding.unwrap(),
             window_decorations: workspace.window_decorations.unwrap(),

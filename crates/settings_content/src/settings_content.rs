@@ -616,6 +616,9 @@ pub enum DockPosition {
     Left,
     Bottom,
     Right,
+    /// Show the panel as a centered overlay instead of docking it, closing
+    /// automatically on click-away or Escape (like the file finder).
+    Floating,
 }
 
 /// Configuration of voice calls in Zed.
@@ -1122,6 +1125,7 @@ pub struct OutlinePanelSettingsContent {
 pub enum DockSide {
     Left,
     Right,
+    Floating,
 }
 
 #[derive(

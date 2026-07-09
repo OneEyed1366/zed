@@ -128,6 +128,18 @@ pub struct WorkspaceSettingsContent {
     ///
     /// Default: false
     pub close_panel_on_toggle: Option<bool>,
+    /// How much of the window a floating panel (a panel docked with
+    /// `"dock": "floating"`) occupies.
+    ///
+    /// Default: fullscreen
+    pub floating_panel_size: Option<FloatingPanelSize>,
+    /// Padding, in pixels, between a `fullscreen` floating panel and the
+    /// edges of the window. Has no effect for other `floating_panel_size`
+    /// values.
+    ///
+    /// Default: `80`
+    #[serde(serialize_with = "serialize_optional_f32_with_two_decimal_places")]
+    pub floating_panel_padding: Option<f32>,
     /// What draws window decorations/titlebar, the client application (Zed) or display server
     /// Default: client
     pub window_decorations: Option<WindowDecorations>,
@@ -304,6 +316,32 @@ pub struct ActivePaneModifiers {
     /// Default: `1.0`
     #[schemars(range(min = 0.0, max = 1.0))]
     pub inactive_opacity: Option<InactiveOpacity>,
+}
+
+#[derive(
+    Copy,
+    Clone,
+    Debug,
+    Default,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    JsonSchema,
+    MergeFrom,
+    strum::VariantArray,
+    strum::VariantNames,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum FloatingPanelSize {
+    /// The panel's own default width, with a limited height.
+    Small,
+    /// About 70% of the window's width and height.
+    Medium,
+    /// About 90% of the window's width and height.
+    Large,
+    /// The whole window, minus a small margin.
+    #[default]
+    Fullscreen,
 }
 
 #[derive(

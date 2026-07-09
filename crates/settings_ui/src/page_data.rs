@@ -4949,6 +4949,44 @@ fn window_and_layout_page() -> SettingsPage {
         ]
     }
 
+    fn floating_panel_section() -> [SettingsPageItem; 3] {
+        [
+            SettingsPageItem::SectionHeader("Floating Panels"),
+            SettingsPageItem::SettingItem(SettingItem {
+                title: "Floating Panel Size",
+                description: "How much of the window a floating panel (a panel docked with \"Floating\") occupies.",
+                field: Box::new(SettingField {
+                    organization_override: None,
+                    json_path: Some("floating_panel_size"),
+                    pick: |settings_content| {
+                        settings_content.workspace.floating_panel_size.as_ref()
+                    },
+                    write: |settings_content, value, _| {
+                        settings_content.workspace.floating_panel_size = value;
+                    },
+                }),
+                metadata: None,
+                files: USER,
+            }),
+            SettingsPageItem::SettingItem(SettingItem {
+                title: "Floating Panel Padding",
+                description: "Manual padding in pixels around a fullscreen floating panel, overriding the automatic spacing.",
+                field: Box::new(SettingField {
+                    organization_override: None,
+                    json_path: Some("floating_panel_padding"),
+                    pick: |settings_content| {
+                        settings_content.workspace.floating_panel_padding.as_ref()
+                    },
+                    write: |settings_content, value, _| {
+                        settings_content.workspace.floating_panel_padding = value;
+                    },
+                }),
+                metadata: None,
+                files: USER,
+            }),
+        ]
+    }
+
     SettingsPage {
         title: "Window & Layout",
         items: concat_sections![
@@ -4961,6 +4999,7 @@ fn window_and_layout_page() -> SettingsPage {
             window_section(),
             pane_modifiers_section(),
             pane_split_direction_section(),
+            floating_panel_section(),
         ],
     }
 }
