@@ -8122,6 +8122,9 @@ impl Workspace {
             DockPosition::Left => ("left-dock", "Left dock"),
             DockPosition::Right => ("right-dock", "Right dock"),
             DockPosition::Bottom => ("bottom-dock", "Bottom dock"),
+            DockPosition::Floating => {
+                unreachable!("render_dock is only called for the physical Left/Right/Bottom docks")
+            }
         };
         let dock_is_open = dock.read(cx).is_open();
         let a11y_active = window.is_a11y_active();
@@ -8915,6 +8918,9 @@ impl RegionFocusHandles {
             DockPosition::Left => &self.left_dock,
             DockPosition::Right => &self.right_dock,
             DockPosition::Bottom => &self.bottom_dock,
+            DockPosition::Floating => {
+                unreachable!("dock() is only called for the physical Left/Right/Bottom docks")
+            }
         }
     }
 }
