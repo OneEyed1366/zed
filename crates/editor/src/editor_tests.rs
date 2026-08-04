@@ -36318,6 +36318,7 @@ async fn test_inlay_hints_request_timeout(cx: &mut TestAppContext) {
                     button: Some(true),
                     notifications: None,
                     semantic_token_rules: None,
+                    experimental_idle_timeout_seconds: None,
                 });
             });
         });
@@ -36423,6 +36424,7 @@ async fn test_inlay_hints_request_timeout(cx: &mut TestAppContext) {
                     button: Some(true),
                     notifications: None,
                     semantic_token_rules: None,
+                    experimental_idle_timeout_seconds: None,
                 });
             });
         });
