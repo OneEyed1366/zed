@@ -1,7 +1,9 @@
 use std::path::PathBuf;
 
 use super::*;
+use crate::dock::{DockPosition, test::TestPanel};
 use crate::item::test::TestItem;
+use crate::FloatingPanel;
 use agent_settings::AgentSettings;
 use client::proto;
 use fs::{FakeFs, Fs};
@@ -114,6 +116,48 @@ async fn test_sidebar_disabled_when_disable_ai_is_enabled(cx: &mut TestAppContex
             mw.sidebar_open(),
             "Sidebar should open when toggled after re-enabling AI"
         );
+    });
+}
+
+#[gpui::test]
+async fn test_opening_sidebar_dismisses_floating_panel(cx: &mut TestAppContext) {
+    init_test(cx);
+    let fs = FakeFs::new(cx.executor());
+    let project = Project::test(fs, [], cx).await;
+
+    let (multi_workspace, cx) =
+        cx.add_window_view(|window, cx| MultiWorkspace::test_new(project, window, cx));
+    let workspace = multi_workspace.read_with(cx, |mw, _cx| mw.workspace().clone());
+
+    workspace.update_in(cx, |workspace, window, cx| {
+        let panel = cx.new(|cx| TestPanel::new(DockPosition::Floating, 100, cx));
+        workspace.add_panel(panel, window, cx);
+        workspace.toggle_panel_focus::<TestPanel>(window, cx);
+    });
+    workspace.read_with(cx, |workspace, cx| {
+        assert!(
+            workspace
+                .active_modal::<FloatingPanel<TestPanel>>(cx)
+                .is_some(),
+            "Floating panel should open as a modal"
+        );
+    });
+
+    multi_workspace.update_in(cx, |mw, window, cx| {
+        mw.toggle_sidebar(window, cx);
+    });
+    cx.run_until_parked();
+
+    workspace.read_with(cx, |workspace, cx| {
+        assert!(
+            workspace
+                .active_modal::<FloatingPanel<TestPanel>>(cx)
+                .is_none(),
+            "Opening the sidebar should collapse an active floating panel, like a click-away does"
+        );
+    });
+    multi_workspace.read_with(cx, |mw, _cx| {
+        assert!(mw.sidebar_open());
     });
 }
 

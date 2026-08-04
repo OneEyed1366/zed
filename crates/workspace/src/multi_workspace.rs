@@ -438,11 +438,23 @@ impl MultiWorkspace {
             self.close_sidebar(window, cx);
         } else {
             self.previous_focus_handle = window.focused(cx);
+            self.dismiss_floating_panels(window, cx);
             self.open_sidebar(cx);
             if let Some(sidebar) = &self.sidebar {
                 sidebar.prepare_for_focus(window, cx);
                 sidebar.focus(window, cx);
             }
+        }
+    }
+
+    /// Mirrors `ModalLayer`'s click-away dismissal, since opening the sidebar
+    /// moves focus away from an active modal (typically a floating panel)
+    /// the same way clicking empty space would.
+    fn dismiss_floating_panels(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        for workspace in self.workspaces().cloned().collect::<Vec<_>>() {
+            workspace.update(cx, |workspace, cx| {
+                workspace.hide_modal(window, cx);
+            });
         }
     }
 
@@ -478,6 +490,7 @@ impl MultiWorkspace {
             }
         } else {
             self.previous_focus_handle = window.focused(cx);
+            self.dismiss_floating_panels(window, cx);
             self.open_sidebar(cx);
             if let Some(sidebar) = &self.sidebar {
                 sidebar.prepare_for_focus(window, cx);
