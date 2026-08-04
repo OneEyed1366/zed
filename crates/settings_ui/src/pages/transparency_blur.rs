@@ -1,5 +1,5 @@
 use gpui::{AnyElement, App, Context, Hsla, Rgba, ScrollHandle, SharedString, Window};
-use settings::{Settings as _, ThemeColorsContent, ThemeStyleContent, WindowBackgroundContent};
+use settings::{Settings as _, ThemeColor, ThemeColorsContent, ThemeStyleContent, WindowBackgroundContent};
 use theme::{ActiveTheme, ThemeColors, ThemeRegistry};
 use ui::{ContextMenu, DropdownMenu, DropdownStyle, IconButton, IconName, IconPosition, prelude::*};
 use util::ResultExt as _;
@@ -57,8 +57,8 @@ fn effective_alpha_percent(color: Hsla) -> u8 {
 
 struct ColorKey {
     native: fn(&ThemeColors) -> Hsla,
-    override_get: fn(&ThemeColorsContent) -> Option<&String>,
-    override_set: fn(&mut ThemeColorsContent, Option<String>),
+    override_get: fn(&ThemeColorsContent) -> Option<&ThemeColor>,
+    override_set: fn(&mut ThemeColorsContent, Option<ThemeColor>),
 }
 
 struct ColorSection {
@@ -193,7 +193,7 @@ fn set_section_alpha(
         for key in section.keys {
             let effective = blend_onto(native.background, (key.native)(&native));
             let hex = rgba_hex_with_alpha_percent(effective, alpha_percent);
-            (key.override_set)(&mut entry.colors, Some(hex));
+            (key.override_set)(&mut entry.colors, Some(hex.into()));
         }
     })
     .log_err();
@@ -272,7 +272,7 @@ fn set_blur(theme_name: SharedString, value: WindowBackgroundContent, window: &m
 fn section_percent(native: &ThemeColors, override_content: Option<&ThemeStyleContent>, section: &ColorSection) -> u8 {
     override_content
         .and_then(|o| (section.keys[0].override_get)(&o.colors))
-        .and_then(|hex| Rgba::try_from(hex.as_str()).ok())
+        .and_then(|hex| Rgba::try_from(hex).ok())
         .map(|rgba| alpha_byte_to_percent((rgba.a * 255.0).round() as u8))
         .unwrap_or_else(|| effective_alpha_percent((section.keys[0].native)(native)))
 }
