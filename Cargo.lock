@@ -3887,17 +3887,16 @@ version = "0.1.0"
 dependencies = [
  "anthropic",
  "anyhow",
+ "collections",
  "credentials_provider",
- "dirs",
  "futures 0.3.32",
  "gpui",
  "http_client",
+ "language_model",
  "log",
- "paths",
  "serde",
  "serde_json",
- "settings",
- "zed_credentials_provider",
+ "util",
 ]
 
 [[package]]
@@ -23432,6 +23431,7 @@ dependencies = [
  "workspace",
  "zed-reqwest",
  "zed_actions",
+ "zed_credentials_provider",
  "zed_env_vars",
  "zlog",
  "zlog_settings",
