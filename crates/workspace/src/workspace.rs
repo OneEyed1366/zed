@@ -4346,6 +4346,7 @@ impl Workspace {
         if let Some(panel) = self.panel::<T>(cx)
             && panel.read(cx).position(window, cx) == DockPosition::Floating
         {
+            panel.update(cx, |panel, cx| panel.set_active(true, window, cx));
             self.toggle_modal::<FloatingPanel<T>, _>(window, cx, |window, cx| {
                 FloatingPanel::new(panel, window, cx)
             });
