@@ -282,23 +282,6 @@ impl Application {
         self
     }
 
-    /// Invokes a handler when the system wakes from sleep.
-    pub fn on_system_wake<F>(&self, mut callback: F) -> &Self
-    where
-        F: 'static + FnMut(&mut App),
-    {
-        let this = Rc::downgrade(&self.0);
-        self.0
-            .borrow_mut()
-            .platform
-            .on_system_wake(Box::new(move || {
-                if let Some(app) = this.upgrade() {
-                    callback(&mut app.borrow_mut());
-                }
-            }));
-        self
-    }
-
     /// Returns a handle to the [`BackgroundExecutor`] associated with this app, which can be used to spawn futures in the background.
     pub fn background_executor(&self) -> BackgroundExecutor {
         self.0.borrow().background_executor.clone()
@@ -717,6 +700,7 @@ pub struct App {
     pub(crate) keystroke_interceptors: SubscriberSet<(), KeystrokeObserver>,
     pub(crate) keyboard_layout_observers: SubscriberSet<(), Handler>,
     pub(crate) thermal_state_observers: SubscriberSet<(), Handler>,
+    pub(crate) system_wake_observers: SubscriberSet<(), Handler>,
     pub(crate) release_listeners: SubscriberSet<EntityId, ReleaseListener>,
     pub(crate) global_observers: SubscriberSet<TypeId, Handler>,
     pub(crate) quit_observers: SubscriberSet<(), QuitHandler>,
@@ -764,6 +748,8 @@ pub struct App {
     pub(crate) mode: GpuiMode,
     pub(crate) cursor_hide_mode: CursorHideMode,
     pub(crate) reduce_motion: bool,
+    /// Origin of the shared clock that phase-locks synced repeating animations.
+    pub(crate) synced_animation_epoch: Instant,
     /// Whether the app was created by [`Application::new_inaccessible`]. No
     /// accesskit APIs will be called when this flag is set.
     pub(crate) accessibility_force_disabled: bool,
@@ -791,6 +777,7 @@ impl App {
             background_executor.is_main_thread(),
             "must construct App on main thread"
         );
+        let synced_animation_epoch = background_executor.now();
 
         let text_system = Arc::new(TextSystem::new(platform.text_system()));
         let entities = EntityMap::new();
@@ -842,6 +829,7 @@ impl App {
                 keystroke_interceptors: SubscriberSet::new(),
                 keyboard_layout_observers: SubscriberSet::new(),
                 thermal_state_observers: SubscriberSet::new(),
+                system_wake_observers: SubscriberSet::new(),
                 global_observers: SubscriberSet::new(),
                 quit_observers: SubscriberSet::new(),
                 restart_observers: SubscriberSet::new(),
@@ -858,6 +846,7 @@ impl App {
                 quitting: false,
                 cursor_hide_mode: CursorHideMode::default(),
                 reduce_motion: false,
+                synced_animation_epoch,
                 accessibility_force_disabled: false,
 
                 #[cfg(any(test, feature = "test-support", debug_assertions))]
@@ -893,6 +882,18 @@ impl App {
                 if let Some(app) = app.upgrade() {
                     let cx = &mut app.borrow_mut();
                     cx.thermal_state_observers
+                        .clone()
+                        .retain(&(), move |callback| (callback)(cx));
+                }
+            }
+        }));
+
+        platform.on_system_wake(Box::new({
+            let app = Rc::downgrade(&app);
+            move || {
+                if let Some(app) = app.upgrade() {
+                    let cx = &mut app.borrow_mut();
+                    cx.system_wake_observers
                         .clone()
                         .retain(&(), move |callback| (callback)(cx));
                 }
@@ -1325,6 +1326,22 @@ impl App {
         F: 'static + FnMut(&mut App),
     {
         let (subscription, activate) = self.thermal_state_observers.insert(
+            (),
+            Box::new(move |cx| {
+                callback(cx);
+                true
+            }),
+        );
+        activate();
+        subscription
+    }
+
+    /// Invokes a handler when the system wakes from sleep.
+    pub fn on_system_wake<F>(&self, mut callback: F) -> Subscription
+    where
+        F: 'static + FnMut(&mut App),
+    {
+        let (subscription, activate) = self.system_wake_observers.insert(
             (),
             Box::new(move |cx| {
                 callback(cx);

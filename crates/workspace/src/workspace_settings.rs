@@ -40,6 +40,7 @@ pub struct WorkspaceSettings {
     pub floating_panel_size: FloatingPanelSize,
     pub floating_panel_padding: f32,
     pub use_system_window_tabs: bool,
+    pub fullscreen_mode: settings::FullscreenMode,
     pub zoomed_padding: bool,
     pub window_decorations: settings::WindowDecorations,
     pub focus_follows_mouse: FocusFollowsMouse,
@@ -84,7 +85,7 @@ impl Settings for WorkspaceSettings {
         Self {
             active_pane_modifiers: ActivePanelModifiers {
                 border_size: Some(
-                    workspace
+                    *workspace
                         .active_pane_modifiers
                         .unwrap()
                         .border_size
@@ -130,6 +131,7 @@ impl Settings for WorkspaceSettings {
             floating_panel_size: workspace.floating_panel_size.unwrap(),
             floating_panel_padding: workspace.floating_panel_padding.unwrap(),
             use_system_window_tabs: workspace.use_system_window_tabs.unwrap(),
+            fullscreen_mode: workspace.fullscreen_mode.unwrap(),
             zoomed_padding: workspace.zoomed_padding.unwrap(),
             window_decorations: workspace.window_decorations.unwrap(),
             focus_follows_mouse: FocusFollowsMouse {
