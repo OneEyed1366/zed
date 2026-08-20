@@ -2077,7 +2077,12 @@ impl Editor {
                         }
                     }
 
-                    project::Event::EntryRenamed(transaction, project_path, abs_path) => {
+                    project::Event::EntryRenamed {
+                        transaction,
+                        new_project_path,
+                        new_abs_path,
+                        ..
+                    } => {
                         let Some(workspace) = editor.workspace() else {
                             return;
                         };
@@ -2096,8 +2101,8 @@ impl Editor {
                                         p.update(cx, |pane, _| {
                                             pane.nav_history_mut().rename_item(
                                                 entity_id,
-                                                project_path.clone(),
-                                                abs_path.clone().into(),
+                                                new_project_path.clone(),
+                                                new_abs_path.clone().into(),
                                             );
                                         })
                                     });
@@ -2788,6 +2793,14 @@ impl Editor {
 
         if self.has_any_expanded_diff_hunks(cx) {
             key_context.add("diffs_expanded");
+        }
+
+        if self
+            .nav_history
+            .as_ref()
+            .is_some_and(ItemNavHistory::is_preview_item)
+        {
+            key_context.add("in_preview");
         }
 
         key_context
